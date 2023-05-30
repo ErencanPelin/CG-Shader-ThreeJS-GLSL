@@ -52,7 +52,7 @@
        light = normalize( light );
        vec3 ViewNormal= normalize(normalMatrix * normal);
        float dProd = dot( ViewNormal, light );
-       dProd=clamp(dProd,0.0,1.0);
+       dProd=round(clamp(dProd,0.0,1.0));
        vColor =  vec3( dProd );
        vec4 ViewPosition= modelViewMatrix * vec4(position,1.0);
        gl_Position=projectionMatrix * ViewPosition;

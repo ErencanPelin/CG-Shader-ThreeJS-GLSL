@@ -92,7 +92,7 @@
         light = normalize( light );
         float dProd = dot( vNormal, light );
         dProd=clamp(dProd,0.0,1.0);
-        gl_FragColor = vec4( dProd,dProd,dProd, 1.0 );
+        gl_FragColor = vec4(round(dProd * 4.0) * 0.25,round(dProd * 4.0) * 0.25,round(dProd * 4.0) * 0.25, 1.0 );
       }
     </script>
 
@@ -161,10 +161,10 @@
     // material_cube.vertexShader=document.getElementById( 'vertexShaderHalfWayVect' ).textContent;
     // material_cube.fragmentShader=document.getElementById( 'FragmentShaderSpecularLight' ).textContent;
 
-    var geometry_knot = new THREE.TorusKnotGeometry( 4, 2, 60, 6 );
-    var knot = new THREE.Mesh(geometry_knot,material_cube);
+    var geometry_plane = new THREE.PlaneGeometry(10, 10);
+    var plane = new THREE.Mesh(geometry_plane,material_cube);
     //and add to the scene
-    scene.add(knot);
+    scene.add(plane);
 
   //////////////
 	// CONTROLS //
