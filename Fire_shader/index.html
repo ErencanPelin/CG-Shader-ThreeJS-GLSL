@@ -59,6 +59,7 @@
       vNormal = (normalMatrix * normal);
       vec4 ViewPosition= modelViewMatrix * vec4(position,1.0);
       vPosition = ViewPosition.xyz;
+      vPosition.x += 0.5;
       gl_Position=projectionMatrix * ViewPosition;
     }
   </script>
@@ -66,32 +67,76 @@
   <script type="x-shader/x-fragment" id="fragmentShaderNormal">
     uniform float u_time;
     uniform float u_speed;
+    uniform float u_size;
+    uniform float u_falloff;
+    uniform float u_height;
 
     varying vec3 vNormal;
     varying vec3 vPosition;
     varying vec2 vTextureCoord;
 
-    void main()
+    
+const float pi = 3.14;
+const float flameThinningFactor = 3.0;
+const vec2 center = vec2(0.5, 0.5);
+const float flameEdgeWidth = 0.07;
+
+float circularVignette(in vec2 screenUV, in vec2 offset, in float scale)
+{
+    return 1.0 - (length(screenUV - offset - center) / 0.5) / scale;
+}
+
+float circularVignette(in vec2 screenUV) 
+{ 
+    return circularVignette(screenUV, vec2(0, 0), 1.0); 
+}
+
+void main() {
+    vec2 st = clamp(vPosition.xy, 0.0, 1.0);// gl_FragCoord.xy/u_resolution.xy;
+
+	float fade;
+    fade = clamp(fade + (1.0 - st.y) * 0.8, 0.0, 1.0);
+    
+    if (abs(st.x - 0.5) > 0.5 / flameThinningFactor)
     {
-      vec2 st = vPosition.xy;
-  
-      vec3 firePos = vec3(0, 0.2, 0);
-      float strength = 10.0;
-      float height = -0.1;
-      float range = 3.816;
-      float curveSteps = 2.0;
-      float flameSteps = 15.0;
-      float curveAmount = 0.05;
-      
-      float dist = distance(firePos, 
-                            vec3(st.x + (sin(st.y * curveSteps + (u_time * u_speed)) * curveAmount * (st.y + 1.0)),
-                                 st.y * height, 
-                                 0.0));
-      dist = floor((1.0 - clamp(pow(dist * range, strength), 0.0, 1.0)) * flameSteps) / flameSteps;
-      vec3 color = vec3(dist, dist * 0.5, dist * 0.2);
-  
-      gl_FragColor = vec4(color,1.0);
+        gl_FragColor = vec4(0.0);
+        return;
     }
+    else
+    {
+    	fade *= cos((st.x - 0.5) * pi * flameThinningFactor);
+    }
+	float blue = fade;
+
+    if (st.y < 0.5)
+    {
+		fade *= circularVignette(st);   
+    }
+    else
+    {
+		fade *= 1.0 - abs(st.x - center.x) / 0.5;
+    }
+    float red = fade;
+    float clampVal = st.y;
+	if (fade < clampVal)
+    {
+        gl_FragColor = vec4(0.0);
+        return;
+    }
+    else if (fade < clampVal + flameEdgeWidth)
+    {
+        fade = (fade - clampVal) / flameEdgeWidth;
+    }
+    else
+    {
+		fade = 1.0;
+    }
+    
+    vec3 flameCol = mix(vec3(0.024,0.383,1.000), vec3(0.036,0.343,0.900), blue);
+    vec3 outerCol = mix(vec3(0.985,0.727,0.086), vec3(7.0,2.2,2.0), red);
+	vec3 col = mix(flameCol, outerCol, fade);
+    gl_FragColor = vec4(col * fade, 1.0);
+}
   </script>
 
   <script type="module">
@@ -110,9 +155,18 @@
     renderer.setSize(window.innerWidth, window.innerHeight);
     document.body.appendChild(renderer.domElement);
 
+    var Settings = {
+      speed: 5.0,
+      size: 1.0,
+      falloff: 20,
+      height: 4.0,
+    };
     const uniforms = {
       u_time: { value: 1.0 },
-      u_speed: { value: 1.0 },
+      u_speed: { value: Settings.speed },
+      u_size: { value: Settings.size },
+      u_falloff: { value: Settings.falloff },
+      u_height: { value: Settings.height },
     }
     var material_sphere = new THREE.ShaderMaterial();
     material_sphere.vertexShader = document.getElementById('vertexShaderNormal').textContent;
@@ -122,6 +176,10 @@
     //#region GUI
     const gui = new dat.GUI();
     const settingsFolder = gui.addFolder('Settings');
+    settingsFolder.add(Settings, 'speed', 0, 50);
+    settingsFolder.add(Settings, 'size', 0, 1.0);
+    settingsFolder.add(Settings, 'falloff', 0, 50.0);
+    settingsFolder.add(Settings, 'height', 1.0, 10.0);
 
     var geometry_sphere = new THREE.SphereGeometry();
     var geometry_mesh = new THREE.Mesh(geometry_sphere, material_sphere);
@@ -134,6 +192,10 @@
       renderer.render(scene, camera);
       controls.update();
       uniforms.u_time.value = clock.getElapsedTime();
+      uniforms.u_speed.value = Settings.speed;
+      uniforms.u_size.value = Settings.size;
+      uniforms.u_falloff.value = Settings.falloff;
+      uniforms.u_height.value = Settings.height;
       requestAnimationFrame(MyUpdateLoop);
     };
 
