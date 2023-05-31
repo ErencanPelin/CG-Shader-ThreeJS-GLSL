@@ -1,0 +1,220 @@
+<html>
+
+<head>
+  <title>Simple Geometry Test</title>
+</head>
+
+<style>
+  body {
+    margin: 0;
+  }
+
+  canvas {
+    width: 100%;
+    height: 100%;
+  }
+</style>
+
+<body>
+  <link rel="shortcut icon" href="#">
+
+
+  <style>
+    body {
+      font-family: Monospace;
+      background-color: #000;
+      color: #fff;
+      margin: 0px;
+      overflow: hidden;
+    }
+
+    #info {
+      position: absolute;
+      top: 10px;
+      width: 100%;
+      text-align: center;
+    }
+  </style>
+
+  <div id="info">
+    <p>GLSL fire shader!</p>
+  </div>
+
+  <script type="importmap">
+			{
+				"imports": {
+					"three": "./build/three.module.js",
+					"dat.gui": "../node_modules/dat.gui/build/dat.gui.module.js"
+				}
+			}
+		</script>
+
+  <script type="x-shader/x-vertex" id="vertexShaderNormal">
+    varying vec3 vNormal;
+    varying vec3 vPosition;
+    varying vec2 vTextureCoord;
+    
+    void main()
+    {
+      vNormal = (normalMatrix * normal);
+      vec4 ViewPosition= modelViewMatrix * vec4(position,1.0);
+      vPosition = ViewPosition.xyz;
+      vPosition.x += 0.5;
+      gl_Position=projectionMatrix * ViewPosition;
+    }
+  </script>
+
+  <script type="x-shader/x-fragment" id="fragmentShaderNormal">
+    uniform float u_time;
+    uniform float u_speed;
+    uniform float u_flameThinningFactor;// = 3.0;
+    uniform float u_flameEdgeWidth;// = 0.07;
+    uniform float u_waveStrength; //max 0.1
+    uniform float u_waveFrequency; //max 30
+
+    varying vec3 vNormal;
+    varying vec3 vPosition;
+    varying vec2 vTextureCoord;
+    
+    const float pi = 3.14;
+    const vec2 center = vec2(0.5, 0.5);
+
+    float circularVignette(in vec2 screenUV, in vec2 offset, in float scale) {
+      return 1.0 - (length(screenUV - offset - center) / 0.5) / scale;
+    }
+
+    float circularVignette(in vec2 screenUV) { 
+      return circularVignette(screenUV, vec2(sin((u_time * u_speed) + (screenUV.y * -u_waveFrequency)) * u_waveStrength, 0.0), 1.0); 
+    }
+
+    void main() {
+      vec2 st = clamp(vPosition.xy, 0.0, 1.0);// gl_FragCoord.xy/u_resolution.xy;
+
+	    float fade;
+      fade = clamp(fade + (1.0 - st.y) * 0.8, 0.0, 1.0);
+    
+      if (abs(st.x - 0.5) > 0.5 / u_flameThinningFactor)
+      {
+          gl_FragColor = vec4(0.0);
+          return;
+      }
+      else
+      {
+        fade *= cos((st.x - 0.5) * pi * u_flameThinningFactor);
+      }
+	    float blue = fade;
+
+      if (st.y < 0.5)
+      {
+        fade *= circularVignette(st);   
+      }
+      else
+      {
+        fade *= 1.0 - abs(st.x - center.x) / 0.5;
+      }
+      float red = fade;
+      float clampVal = st.y;
+	    if (fade < clampVal)
+      {
+        gl_FragColor = vec4(0.0);
+        return;
+      }
+      else if (fade < clampVal + u_flameEdgeWidth)
+      {
+        fade = (fade - clampVal) / u_flameEdgeWidth;
+      }
+      else
+      {
+        fade = 1.0;
+      }
+    
+      vec3 flameCol = mix(vec3(0.024,0.383,1.000), vec3(0.036,0.343,0.900), blue);
+      vec3 outerCol = mix(vec3(0.985,0.727,0.086), vec3(7.0,2.2,2.0), red);
+      vec3 col = mix(flameCol, outerCol, fade);
+      gl_FragColor = vec4(col * fade, 1.0);
+    }
+  </script>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from './build/controls/OrbitControls.js';
+    import * as dat from 'dat.gui';
+
+    var scene = new THREE.Scene();
+    var ratio = window.innerWidth / window.innerHeight;
+    var camera = new THREE.PerspectiveCamera(45, ratio, 0.1, 1000);
+
+    camera.position.set(0, 0, 15);
+    camera.lookAt(0, 0, 1);
+
+    var renderer = new THREE.WebGLRenderer();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.body.appendChild(renderer.domElement);
+
+    var Settings = {
+      speed: 2.5,
+      flameEdgeWidth: 0.07,
+      flameThinness: 3.0,
+      waveStrength: 0.1,
+      waveFrequency: 10,
+    };
+    const uniforms = {
+      u_time: { value: 1.0 },
+      u_speed: { value: Settings.speed },
+      u_flameEdgeWidth: { value: Settings.flameEdgeWidth },
+      u_flameThinningFactor: { value: Settings.flameWidth },
+      u_waveStrength: { value: Settings.waveStrength },
+      u_waveFrequency: { value: Settings.waveFrequency },
+    }
+    var material_sphere = new THREE.ShaderMaterial();
+    material_sphere.vertexShader = document.getElementById('vertexShaderNormal').textContent;
+    material_sphere.fragmentShader = document.getElementById('fragmentShaderNormal').textContent;
+    material_sphere.uniforms = uniforms;
+
+    //#region GUI
+    const gui = new dat.GUI();
+    const settingsFolder = gui.addFolder('Settings');
+    settingsFolder.add(Settings, 'speed', 0, 2.5);
+    settingsFolder.add(Settings, 'flameEdgeWidth', 0, 0.1);
+    settingsFolder.add(Settings, 'flameThinness', 0, 10.0);
+    settingsFolder.add(Settings, 'waveStrength', 0.0, 0.1);
+    settingsFolder.add(Settings, 'waveFrequency', 0.0, 30.0);
+
+    var geometry_sphere = new THREE.SphereGeometry();
+    var geometry_mesh = new THREE.Mesh(geometry_sphere, material_sphere);
+    scene.add(geometry_mesh);
+
+    var controls = new OrbitControls(camera, renderer.domElement);
+
+    const clock = new THREE.Clock();
+    var MyUpdateLoop = function () {
+      renderer.render(scene, camera);
+      controls.update();
+      uniforms.u_time.value = clock.getElapsedTime();
+      uniforms.u_speed.value = Settings.speed;
+      uniforms.u_flameEdgeWidth.value = Settings.flameEdgeWidth;
+      uniforms.u_flameThinningFactor.value = Settings.flameThinness;
+      uniforms.u_waveStrength.value = Settings.waveStrength;
+      uniforms.u_waveFrequency.value = Settings.waveFrequency;
+      requestAnimationFrame(MyUpdateLoop);
+    };
+
+    requestAnimationFrame(MyUpdateLoop);
+
+    //this fucntion is called when the window is resized
+    var MyResize = function () {
+      var width = window.innerWidth;
+      var height = window.innerHeight;
+      renderer.setSize(width, height);
+      camera.aspect = width / height;
+      camera.updateProjectionMatrix();
+      renderer.render(scene, camera);
+    };
+
+    //link the resize of the window to the update of the camera
+    window.addEventListener('resize', MyResize);
+
+  </script>
+</body>
+
+</html>
