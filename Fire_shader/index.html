@@ -51,22 +51,26 @@
 
   <script type="x-shader/x-vertex" id="vertexShaderNormal">
     varying vec3 vNormal;
+    varying vec3 vPosition;
     varying vec2 vTextureCoord;
+    
     void main()
     {
       vNormal = (normalMatrix * normal);
       vec4 ViewPosition= modelViewMatrix * vec4(position,1.0);
+      vPosition = ViewPosition.xyz;
       gl_Position=projectionMatrix * ViewPosition;
     }
   </script>
 
   <script type="x-shader/x-fragment" id="fragmentShaderNormal">
     varying vec3 vNormal;
+    varying vec3 vPosition;
     varying vec2 vTextureCoord;
 
     void main()
     {
-			gl_FragColor = vec4( vNormal, 1.0 );
+			gl_FragColor = vec4(vPosition, 1.0 );
     }
   </script>
 
@@ -85,12 +89,12 @@
     renderer.setSize(window.innerWidth, window.innerHeight);
     document.body.appendChild(renderer.domElement);
 
-    var material_cube = new THREE.ShaderMaterial();
-    material_cube.vertexShader = document.getElementById('vertexShaderNormal').textContent;
-    material_cube.fragmentShader = document.getElementById('fragmentShaderNormal').textContent;
+    var material_sphere = new THREE.ShaderMaterial();
+    material_sphere.vertexShader = document.getElementById('vertexShaderNormal').textContent;
+    material_sphere.fragmentShader = document.getElementById('fragmentShaderNormal').textContent;
 
-    var geometry_plane = new THREE.PlaneGeometry(10, 10);
-    var plane = new THREE.Mesh(geometry_plane, material_cube);
+    var geometry_sphere = new THREE.SphereGeometry();
+    var plane = new THREE.Mesh(geometry_sphere, material_sphere);
     scene.add(plane);
 
     var controls = new OrbitControls(camera, renderer.domElement);
