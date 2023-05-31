@@ -4,3 +4,4 @@ Fire_shader/build/controls/OrbitControls.js
 Fire_shader/build/controls/.DS_Store
 Fire_shader/build/.DS_Store
 .DS_Store
+node_modules
