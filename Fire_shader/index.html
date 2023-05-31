@@ -64,13 +64,33 @@
   </script>
 
   <script type="x-shader/x-fragment" id="fragmentShaderNormal">
+    uniform float u_time;
+
     varying vec3 vNormal;
     varying vec3 vPosition;
     varying vec2 vTextureCoord;
 
     void main()
     {
-			gl_FragColor = vec4(vPosition, 1.0 );
+      vec2 st = vPosition.xy;
+  
+      vec3 firePos = vec3(0, 0.2, 0);
+      float strength = 10.0;
+      float height = -0.1;
+      float range = 3.816;
+      float speed = 5.0;
+      float curveSteps = 2.0;
+      float flameSteps = 15.0;
+      float curveAmount = 0.05;
+      
+      float dist = distance(firePos, 
+                            vec3(st.x + (sin(st.y * curveSteps + (u_time * speed)) * curveAmount * (st.y + 1.0)),
+                                 st.y * height, 
+                                 0.0));
+      dist = floor((1.0 - clamp(pow(dist * range, strength), 0.0, 1.0)) * flameSteps) / flameSteps;
+      vec3 color = vec3(dist, dist * 0.5, dist * 0.2);
+  
+      gl_FragColor = vec4(color,1.0);
     }
   </script>
 
@@ -89,19 +109,25 @@
     renderer.setSize(window.innerWidth, window.innerHeight);
     document.body.appendChild(renderer.domElement);
 
+    const uniforms = {
+      u_time: { value: 1.0 }
+    }
     var material_sphere = new THREE.ShaderMaterial();
     material_sphere.vertexShader = document.getElementById('vertexShaderNormal').textContent;
     material_sphere.fragmentShader = document.getElementById('fragmentShaderNormal').textContent;
+    material_sphere.uniforms = uniforms;
 
     var geometry_sphere = new THREE.SphereGeometry();
-    var plane = new THREE.Mesh(geometry_sphere, material_sphere);
-    scene.add(plane);
+    var geometry_mesh = new THREE.Mesh(geometry_sphere, material_sphere);
+    scene.add(geometry_mesh);
 
     var controls = new OrbitControls(camera, renderer.domElement);
 
+    const clock = new THREE.Clock();
     var MyUpdateLoop = function () {
       renderer.render(scene, camera);
       controls.update();
+      uniforms.u_time.value = clock.getElapsedTime();
       requestAnimationFrame(MyUpdateLoop);
     };
 
