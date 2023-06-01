@@ -63,7 +63,22 @@
       gl_Position=projectionMatrix * ViewPosition;
     }
   </script>
+  
+  <script type="x-shader/x-fragment" id="candle_fragmentShaderNormal">
+    varying vec3 vNormal;
+    varying vec3 vPosition;
 
+    void main() {
+    //  vec3 st = clamp(position.xyz * 1.0, 0.0, 1.0);;
+      float d = (1.0 - dot(normalize(vNormal), vec3(0.0, 0.0, 1.0)));
+      vec3 col = vec3(d, d * 0.5, d * 0.2);
+      d = (gl_FragCoord.y - 200.0) * 0.01;
+      vec3 fade = vec3(d, d * 0.5, d * 0.2);
+      vec3 fin = (col + fade) / 2.0;
+      gl_FragColor = vec4(fin, 1.0);
+    }
+  </script>
+  
   <script type="x-shader/x-fragment" id="fragmentShaderNormal">
     uniform float u_time;
     uniform float u_speed;
@@ -131,7 +146,7 @@
       vec3 flameCol = mix(vec3(0.024,0.383,1.000), vec3(0.036,0.343,0.900), blue);
       vec3 outerCol = mix(vec3(0.985,0.727,0.086), vec3(7.0,2.2,2.0), red);
       vec3 col = mix(flameCol, outerCol, fade);
-      gl_FragColor = vec4(col * fade, 1.0);
+      gl_FragColor = vec4(col * fade, fade);
     }
   </script>
 
@@ -166,10 +181,17 @@
       u_waveStrength: { value: Settings.waveStrength },
       u_waveFrequency: { value: Settings.waveFrequency },
     }
-    var material_sphere = new THREE.ShaderMaterial();
-    material_sphere.vertexShader = document.getElementById('vertexShaderNormal').textContent;
-    material_sphere.fragmentShader = document.getElementById('fragmentShaderNormal').textContent;
-    material_sphere.uniforms = uniforms;
+
+    var material_flame = new THREE.ShaderMaterial();
+    material_flame.transparent = true;
+    material_flame.vertexShader = document.getElementById('vertexShaderNormal').textContent;
+    material_flame.fragmentShader = document.getElementById('fragmentShaderNormal').textContent;
+    material_flame.uniforms = uniforms;
+    
+    var material_candle = new THREE.ShaderMaterial();
+    material_candle.vertexShader = document.getElementById('vertexShaderNormal').textContent;
+    material_candle.fragmentShader = document.getElementById('candle_fragmentShaderNormal').textContent;
+    material_candle.uniforms = uniforms;
 
     //#region GUI
     const gui = new dat.GUI();
@@ -180,9 +202,15 @@
     settingsFolder.add(Settings, 'waveStrength', 0.0, 0.1);
     settingsFolder.add(Settings, 'waveFrequency', 0.0, 30.0);
 
-    var geometry_sphere = new THREE.SphereGeometry();
-    var geometry_mesh = new THREE.Mesh(geometry_sphere, material_sphere);
-    scene.add(geometry_mesh);
+    var geometry_flame = new THREE.SphereGeometry();
+    var flame_mesh = new THREE.Mesh(geometry_flame, material_flame);
+    scene.add(flame_mesh);
+
+    var geometry_candle = new THREE.CylinderGeometry();
+    var candle_mesh = new THREE.Mesh(geometry_candle, material_candle);
+    candle_mesh.scale.set(0.2, 1.0, 0.2);
+    candle_mesh.position.set(0, -0.5, 0);
+    scene.add(candle_mesh);
 
     var controls = new OrbitControls(camera, renderer.domElement);
 
